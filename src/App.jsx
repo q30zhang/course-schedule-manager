@@ -1,7 +1,238 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Calendar, Users, User, GraduationCap, Settings, RefreshCw, Download, Upload, Plus, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
 
 const CourseScheduler = () => {
+  // --- Google OAuth (GIS) + Sheets/Drive REST helpers ---
+  // const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const GOOGLE_CLIENT_ID = '207856180548-51eogdoqo4shuj1ko7n0qstr2q9fhkdg.apps.googleusercontent.com'; // DEV
+
+  const [accessToken, setAccessToken] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [indexSpreadsheet, setIndexSpreadsheet] = useState(null); // { spreadsheetId, spreadsheetUrl }
+  const [showAuthError, setShowAuthError] = useState(true);
+  const [showIndexNotice, setShowIndexNotice] = useState(true);
+  const tokenClientRef = useRef(null);
+
+  const googleScopes = useMemo(() => {
+    // Start with Sheets read/write. Include Drive file scope now since you'll likely create/copy/move weekly files.
+    // You can remove drive.file until you actually need folder moves / copies.
+    return [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive.file'
+    ].join(' ');
+  }, []);
+
+  const loadScript = (src) =>
+  new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+
+    // If script exists and already loaded, resolve.
+    if (existing && existing.dataset.loaded === "true") return resolve();
+
+    const onLoad = () => {
+      const s = document.querySelector(`script[src="${src}"]`);
+      if (s) s.dataset.loaded = "true";
+      resolve();
+    };
+
+    const onError = () => {
+      try {
+        existing?.remove?.();
+      } catch {}
+      reject(new Error(`Failed to load ${src} (blocked by network/adblock/CSP?)`));
+    };
+
+    if (existing) {
+      // Script tag exists but not marked loaded: wait for it.
+      existing.addEventListener("load", onLoad, { once: true });
+      existing.addEventListener("error", onError, { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = src;
+    script.async = true;
+    script.defer = true;
+    script.onload = onLoad;
+    script.onerror = onError;
+    document.head.appendChild(script);
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setAuthError('');
+        if (!GOOGLE_CLIENT_ID) {
+          setShowAuthError(true);
+          setAuthError('Missing VITE_GOOGLE_CLIENT_ID. Add it to your .env and restart the dev server.');
+          return;
+        }
+
+        // Google Identity Services
+        await loadScript('https://accounts.google.com/gsi/client');
+        await new Promise((r) => setTimeout(r, 0));
+
+        if (!window.google?.accounts?.oauth2) {
+          setShowAuthError(true);
+          setAuthError(
+            `GIS not initialized. window.google=${!!window.google}, ` +
+            `accounts=${!!window.google?.accounts}, oauth2=${!!window.google?.accounts?.oauth2}. ` +
+            `Check DevTools -> Network for gsi/client, disable adblock, check CSP.`
+          );
+          return;
+        }
+
+        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: googleScopes,
+          callback: (resp) => {
+            if (resp?.error) {
+              setShowAuthError(true);
+              setAuthError(resp.error);
+              setAccessToken('');
+              return;
+            }
+            setAuthError('');
+            setAccessToken(resp.access_token || '');
+          }
+        });
+      } catch (err) {
+        setShowAuthError(true);
+        setAuthError(err?.message || String(err));
+      }
+    })();
+  }, [GOOGLE_CLIENT_ID, googleScopes]);
+
+  const signIn = () => {
+    setAuthError('');
+    if (!tokenClientRef.current) {
+      setShowAuthError(true);
+      setAuthError('Token client not ready yet (GIS script not loaded).');
+      return;
+    }
+    // prompt consent the first time; subsequent calls should be silent if possible
+    tokenClientRef.current.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
+  };
+
+  const signOut = () => {
+    try {
+      if (accessToken && window.google?.accounts?.oauth2?.revoke) {
+        window.google.accounts.oauth2.revoke(accessToken, () => {});
+      }
+    } catch {
+      // ignore
+    }
+    setAccessToken('');
+    setIndexSpreadsheet(null);
+    setShowIndexNotice(true);
+    setShowAuthError(true);
+  };
+
+  const googleFetch = async (url, init = {}) => {
+    if (!accessToken) throw new Error('Not signed in');
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        ...(init.headers || {}),
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+    if (!res.ok) {
+      let details = '';
+      try {
+        details = await res.text();
+      } catch {
+        // ignore
+      }
+      throw new Error(`Google API error ${res.status}: ${details || res.statusText}`);
+    }
+    // Some endpoints return empty body
+    const ct = res.headers.get('content-type') || '';
+    if (ct.includes('application/json')) return res.json();
+    return res.text();
+  };
+
+  const createIndexSpreadsheetInMyDrive = async () => {
+    setAuthError('');
+    try {
+      // 1) Create the spreadsheet file (Sheets API). This automatically creates a file in your Drive.
+      const created = await googleFetch('https://sheets.googleapis.com/v4/spreadsheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          properties: { title: 'Course Schedule Manager - Index (DEV)' },
+          sheets: [{ properties: { title: 'campus_week_index' } }]
+        })
+      });
+
+      const spreadsheetId = created.spreadsheetId;
+      const spreadsheetUrl = created.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+
+      // 2) Add additional tabs for meta data.
+      await googleFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [
+            { addSheet: { properties: { title: 'teachers' } } },
+            { addSheet: { properties: { title: 'students' } } },
+            { addSheet: { properties: { title: 'course_status' } } },
+            { addSheet: { properties: { title: 'audit_log' } } }
+          ]
+        })
+      });
+
+      // 3) Seed header rows.
+      await googleFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate?valueInputOption=RAW`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data: [
+            {
+              range: 'campus_week_index!A1:H1',
+              majorDimension: 'ROWS',
+              values: [[
+                'campus_id',
+                'week_start_date',
+                'spreadsheet_id',
+                'sheet_name',
+                'status',
+                'last_updated_at',
+                'last_updated_by',
+                'notes'
+              ]]
+            },
+            {
+              range: 'teachers!A1:E1',
+              majorDimension: 'ROWS',
+              values: [[ 'teacher_id', 'name', 'email', 'campus_ids', 'active' ]]
+            },
+            {
+              range: 'students!A1:E1',
+              majorDimension: 'ROWS',
+              values: [[ 'student_id', 'name', 'email', 'campus_id', 'active' ]]
+            },
+            {
+              range: 'course_status!A1:D1',
+              majorDimension: 'ROWS',
+              values: [[ 'status_code', 'label', 'color', 'active' ]]
+            },
+            {
+              range: 'audit_log!A1:F1',
+              majorDimension: 'ROWS',
+              values: [[ 'timestamp', 'user', 'action', 'campus_id', 'week_start_date', 'details' ]]
+            }
+          ]
+        })
+      });
+
+      setShowIndexNotice(true);
+      setIndexSpreadsheet({ spreadsheetId, spreadsheetUrl });
+    } catch (err) {
+      setShowAuthError(true);
+      setAuthError(err?.message || String(err));
+    }
+  };
   const [events, setEvents] = useState([
     {
       id: 1,
@@ -518,6 +749,32 @@ const CourseScheduler = () => {
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-gray-800">Course Scheduler</h1>
           <div className="flex gap-2">
+            {!accessToken ? (
+              <button
+                onClick={signIn}
+                className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 text-sm"
+                title="Sign in with Google"
+              >
+                Sign in
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={signOut}
+                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                  title="Sign out"
+                >
+                  Sign out
+                </button>
+                <button
+                  onClick={createIndexSpreadsheetInMyDrive}
+                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  title="Create the Index spreadsheet in your Drive"
+                >
+                  Create Index Sheet
+                </button>
+              </>
+            )}
             <label className="flex items-center gap-2 text-sm">
               <input
                 type="checkbox"
@@ -534,7 +791,7 @@ const CourseScheduler = () => {
               <Settings size={20} />
             </button>
             <button
-              onClick={() => console.log('Sync with database')}
+              onClick={() => console.log('TODO: load/save schedule using Sheets API')}
               className="p-2 hover:bg-gray-100 rounded"
               title="Sync"
             >
@@ -542,6 +799,44 @@ const CourseScheduler = () => {
             </button>
           </div>
         </div>
+        
+        {((showAuthError && authError) || (showIndexNotice && indexSpreadsheet)) && (
+          <div className="mt-2 text-sm">
+            {showAuthError && authError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 rounded p-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">{authError}</div>
+                <button
+                  onClick={() => setShowAuthError(false)}
+                  className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0"
+                >
+                  OK
+                </button>
+              </div>
+            )}
+            {showIndexNotice && indexSpreadsheet && (
+              <div className="bg-green-50 border border-green-200 text-green-800 rounded p-2 mt-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  Index spreadsheet created: {' '}
+                  <a
+                    className="underline"
+                    href={indexSpreadsheet.spreadsheetUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open in Google Sheets
+                  </a>
+                  <span className="ml-2 text-xs text-green-700">({indexSpreadsheet.spreadsheetId})</span>
+                </div>
+                <button
+                  onClick={() => setShowIndexNotice(false)}
+                  className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 shrink-0"
+                >
+                  OK
+                </button>
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Toolbar */}
         <div className="flex flex-wrap gap-2 items-center">
