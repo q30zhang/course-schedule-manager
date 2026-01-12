@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Calendar, Users, User, GraduationCap, Settings, RefreshCw, Download, Upload, Plus, ChevronLeft, ChevronRight, MapPin, X } from 'lucide-react';
+import { Calendar, Users, User, GraduationCap, Settings, RefreshCw, Download, Upload, Plus, ChevronLeft, ChevronRight, MapPin, X, Moon, Sun } from 'lucide-react';
+import './App.css';
 
 const CourseScheduler = () => {
   // --- Google OAuth (GIS) + Sheets/Drive REST helpers ---
@@ -12,6 +13,56 @@ const CourseScheduler = () => {
   const [showAuthError, setShowAuthError] = useState(true);
   const [showIndexNotice, setShowIndexNotice] = useState(true);
   const tokenClientRef = useRef(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const iconBtnClass = isDarkMode
+    ? 'p-2 rounded bg-transparent hover:bg-gray-800 text-gray-100 border border-gray-700'
+    : 'p-2 rounded bg-transparent hover:bg-gray-100 text-gray-800 border border-transparent';
+
+  const pillBtnBase = 'px-3 py-2 rounded border';
+  const pillBtnInactive = isDarkMode
+    ? 'bg-gray-800 border-gray-700 text-gray-100 hover:bg-gray-700'
+    : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100';
+
+  const secondaryBtnClass = isDarkMode
+    ? 'px-3 py-2 bg-gray-800 text-gray-100 rounded hover:bg-gray-700 text-sm border border-gray-700'
+    : 'px-3 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 text-sm border border-gray-300';
+
+  const noticeOkBtnRed = isDarkMode
+    ? 'px-3 py-1 bg-red-900/40 text-red-100 rounded hover:bg-red-900/60 shrink-0 border border-red-800'
+    : 'px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0';
+
+  const noticeOkBtnGreen = isDarkMode
+    ? 'px-3 py-1 bg-green-900/40 text-green-100 rounded hover:bg-green-900/60 shrink-0 border border-green-800'
+    : 'px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 shrink-0';
+
+  const btnBase = 'rounded font-semibold border transition-colors';
+
+  const btnPrimary = isDarkMode
+    ? `${btnBase} bg-blue-500 hover:bg-blue-400 text-white border-blue-300 shadow-sm`
+    : `${btnBase} bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-sm`;
+
+  const btnSecondary = isDarkMode
+    ? `${btnBase} bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-700`
+    : `${btnBase} bg-gray-200 hover:bg-gray-300 text-gray-800 border-gray-300`;
+
+  const btnGhost = isDarkMode
+    ? `${btnBase} bg-transparent hover:bg-gray-800 text-gray-100 border-gray-700`
+    : `${btnBase} bg-transparent hover:bg-gray-100 text-gray-800 border-gray-200`;
+
+  const btnDanger = isDarkMode
+    ? `${btnBase} bg-red-900/40 hover:bg-red-900/60 text-red-100 border-red-800`
+    : `${btnBase} bg-red-100 hover:bg-red-200 text-red-700 border-red-200`;
+
+  const btnLinkBlue = isDarkMode
+    ? `${btnBase} bg-blue-900/40 hover:bg-blue-900/60 text-blue-100 border-blue-800 text-sm`
+    : `${btnBase} bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200 text-sm`;
+    
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) root.classList.add('dark');
+    else root.classList.remove('dark');
+  }, [isDarkMode]);
 
   const googleScopes = useMemo(() => {
     // Start with Sheets read/write. Include Drive file scope now since you'll likely create/copy/move weekly files.
@@ -722,8 +773,13 @@ const CourseScheduler = () => {
               draggable
               onDragStart={(e) => handleDragStart(e, event)}
               onClick={(e) => handleEventClick(e, event.id)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setEditingEvent(event);
+                setShowEventModal(true);
+              }}
               onContextMenu={(e) => handleEventContextMenu(e, event)}
-              className={`absolute left-1 right-1 rounded p-2 cursor-move text-xs overflow-hidden ${
+              className={`absolute left-1 right-1 rounded p-2 cursor-move text-xs overflow-hidden text-gray-900 ${
                 isSelected ? 'ring-2 ring-blue-500' : ''
               }`}
               style={{
@@ -732,9 +788,9 @@ const CourseScheduler = () => {
                 backgroundColor: getEventColor(event)
               }}
             >
-              <div className="font-semibold truncate">{event.subject}</div>
-              <div className="text-gray-700 truncate">{event.teachers.join(', ')}</div>
-              <div className="text-gray-600 truncate text-[10px]">{event.branch}</div>
+              <div className="font-semibold truncate text-gray-900">{event.subject}</div>
+              <div className="truncate text-gray-800">{event.teachers.join(', ')}</div>
+              <div className="truncate text-[10px] text-gray-700">{event.branch}</div>
             </div>
           );
         })}
@@ -743,16 +799,16 @@ const CourseScheduler = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className={`h-screen flex flex-col ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50'}`}>
       {/* Header */}
-      <div className="bg-white border-b border-gray-300 p-4 shadow-sm">
+      <div className={`border-b p-4 shadow-sm ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-300'}`}>
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-gray-800">Course Scheduler</h1>
+          <h1 className={`text-2xl font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Course Scheduler</h1>
           <div className="flex gap-2">
             {!accessToken ? (
               <button
                 onClick={signIn}
-                className="px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 text-sm"
+                className={`${btnSecondary} px-3 py-2 text-sm`}
                 title="Sign in with Google"
               >
                 Sign in
@@ -761,21 +817,21 @@ const CourseScheduler = () => {
               <>
                 <button
                   onClick={signOut}
-                  className="px-3 py-2 bg-gray-200 rounded hover:bg-gray-300 text-sm"
+                  className={`${btnSecondary} px-3 py-2 text-sm`}
                   title="Sign out"
                 >
                   Sign out
                 </button>
                 <button
                   onClick={createIndexSpreadsheetInMyDrive}
-                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                  className={`${btnPrimary} px-3 py-2 text-sm`}
                   title="Create the Index spreadsheet in your Drive"
                 >
                   Create Index Sheet
                 </button>
               </>
             )}
-            <label className="flex items-center gap-2 text-sm">
+            <label className={`flex items-center gap-2 text-sm ${isDarkMode ? 'text-gray-100' : ''}`}>
               <input
                 type="checkbox"
                 checked={showHalfHourLines}
@@ -785,14 +841,21 @@ const CourseScheduler = () => {
             </label>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-2 hover:bg-gray-100 rounded"
+              className={iconBtnClass}
               title="Settings"
             >
               <Settings size={20} />
             </button>
             <button
+              onClick={() => setIsDarkMode(v => !v)}
+              className={iconBtnClass}
+              title={isDarkMode ? 'Switch to Day view' : 'Switch to Night view'}
+            >
+              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+            <button
               onClick={() => console.log('TODO: load/save schedule using Sheets API')}
-              className="p-2 hover:bg-gray-100 rounded"
+              className={iconBtnClass}
               title="Sync"
             >
               <RefreshCw size={20} />
@@ -807,7 +870,7 @@ const CourseScheduler = () => {
                 <div className="min-w-0">{authError}</div>
                 <button
                   onClick={() => setShowAuthError(false)}
-                  className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0"
+                  className={noticeOkBtnRed}
                 >
                   OK
                 </button>
@@ -829,7 +892,7 @@ const CourseScheduler = () => {
                 </div>
                 <button
                   onClick={() => setShowIndexNotice(false)}
-                  className="px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 shrink-0"
+                  className={noticeOkBtnGreen}
                 >
                   OK
                 </button>
@@ -854,7 +917,7 @@ const CourseScheduler = () => {
               });
               setShowEventModal(true);
             }}
-            className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2"
+            className={`${btnPrimary} px-3 py-2 flex items-center gap-2`}
           >
             <Plus size={16} />
             Add Event
@@ -863,27 +926,43 @@ const CourseScheduler = () => {
           <div className="flex gap-1 border-l pl-2">
             <button
               onClick={() => setViewMode('all')}
-              className={`px-3 py-2 rounded ${viewMode === 'all' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} ${
+                viewMode === 'all'
+                  ? (isDarkMode ? 'bg-blue-900 text-blue-100' : 'bg-blue-100 text-blue-700')
+                  : pillBtnInactive
+              }`}
             >
               All
             </button>
             <button
               onClick={() => setViewMode('teacher')}
-              className={`px-3 py-2 rounded flex items-center gap-1 ${viewMode === 'teacher' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} flex items-center gap-1 ${
+                viewMode === 'teacher'
+                  ? (isDarkMode ? 'bg-blue-900 text-blue-100' : 'bg-blue-100 text-blue-700')
+                  : pillBtnInactive
+              }`}
             >
               <User size={16} />
               Teacher
             </button>
             <button
               onClick={() => setViewMode('student')}
-              className={`px-3 py-2 rounded flex items-center gap-1 ${viewMode === 'student' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} flex items-center gap-1 ${
+                viewMode === 'student'
+                  ? (isDarkMode ? 'bg-blue-900 text-blue-100' : 'bg-blue-100 text-blue-700')
+                  : pillBtnInactive
+              }`}
             >
               <GraduationCap size={16} />
               Student
             </button>
             <button
               onClick={() => setViewMode('branch')}
-              className={`px-3 py-2 rounded flex items-center gap-1 ${viewMode === 'branch' ? 'bg-blue-100 text-blue-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} flex items-center gap-1 ${
+                viewMode === 'branch'
+                  ? (isDarkMode ? 'bg-blue-900 text-blue-100' : 'bg-blue-100 text-blue-700')
+                  : pillBtnInactive
+              }`}
             >
               <MapPin size={16} />
               Branch
@@ -894,7 +973,7 @@ const CourseScheduler = () => {
             <select
               value={selectedTeacher}
               onChange={(e) => setSelectedTeacher(e.target.value)}
-              className="px-3 py-2 border rounded"
+              className={`px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
             >
               <option value="">Select Teacher</option>
               {getAllTeachers().map(t => (
@@ -907,7 +986,7 @@ const CourseScheduler = () => {
             <select
               value={selectedStudent}
               onChange={(e) => setSelectedStudent(e.target.value)}
-              className="px-3 py-2 border rounded"
+              className={`px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
             >
               <option value="">Select Student</option>
               {getAllStudents().map(s => (
@@ -920,7 +999,7 @@ const CourseScheduler = () => {
             <select
               value={selectedBranch}
               onChange={(e) => setSelectedBranch(e.target.value)}
-              className="px-3 py-2 border rounded"
+              className={`px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
             >
               <option value="">Select Branch</option>
               {getAllBranches().map(b => (
@@ -932,13 +1011,21 @@ const CourseScheduler = () => {
           <div className="flex gap-1 border-l pl-2">
             <button
               onClick={() => setCurrentWeek(0)}
-              className={`px-3 py-2 rounded ${currentWeek === 0 ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} ${
+                currentWeek === 0
+                  ? (isDarkMode ? 'bg-green-900 text-green-100' : 'bg-green-100 text-green-700')
+                  : pillBtnInactive
+              }`}
             >
               This Week
             </button>
             <button
               onClick={() => setCurrentWeek(1)}
-              className={`px-3 py-2 rounded ${currentWeek === 1 ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100'}`}
+              className={`${pillBtnBase} ${
+                currentWeek === 1
+                  ? (isDarkMode ? 'bg-green-900 text-green-100' : 'bg-green-100 text-green-700')
+                  : pillBtnInactive
+              }`}
             >
               Next Week
             </button>
@@ -946,7 +1033,11 @@ const CourseScheduler = () => {
         </div>
 
         {copyMode && (
-          <div className="mt-2 bg-yellow-100 border border-yellow-300 rounded p-2 text-sm">
+          <div className={`mt-2 rounded p-2 text-sm border ${
+            isDarkMode
+              ? 'bg-yellow-900/30 border-yellow-800 text-yellow-100'
+              : 'bg-yellow-100 border-yellow-300'
+          }`}>
             Copy mode active - Click on a time slot to paste, or press ESC to cancel
           </div>
         )}
@@ -954,15 +1045,15 @@ const CourseScheduler = () => {
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="bg-blue-50 border-b border-blue-200 p-4">
+        <div className={`border-b p-4 ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-blue-50 border-blue-200'}`}>
           <h3 className="font-semibold mb-2">User Settings</h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm text-gray-600">Branch</label>
+              <label className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Branch</label>
               <select
                 value={userSettings.branch}
                 onChange={(e) => setUserSettings({...userSettings, branch: e.target.value})}
-                className="w-full px-2 py-1 border rounded"
+                className={`w-full px-2 py-1 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
               >
                 <option value="Branch A">Branch A</option>
                 <option value="Branch B">Branch B</option>
@@ -970,11 +1061,11 @@ const CourseScheduler = () => {
               </select>
             </div>
             <div>
-              <label className="text-sm text-gray-600">Timezone</label>
+              <label className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Timezone</label>
               <select
                 value={userSettings.timezone}
                 onChange={(e) => setUserSettings({...userSettings, timezone: e.target.value})}
-                className="w-full px-2 py-1 border rounded"
+                className={`w-full px-2 py-1 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
               >
                 <option value="auto">Auto-detected</option>
                 <option value="America/Los_Angeles">US West (PST/PDT)</option>
@@ -991,12 +1082,12 @@ const CourseScheduler = () => {
       <div className="flex-1 overflow-auto" ref={calendarRef}>
         <div className="flex min-h-full">
           {/* Time labels */}
-          <div className="w-16 flex-shrink-0 border-r border-gray-300 bg-gray-50">
+          <div className={`w-16 flex-shrink-0 border-r ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-50'}`}>
             <div className="h-12" /> {/* Header spacer */}
             {hours.map(hour => (
               <div key={hour}>
                 <div
-                  className="border-t border-gray-300 text-xs text-gray-600 pr-2 text-right"
+                  className={`border-t text-xs pr-2 text-right ${isDarkMode ? 'border-gray-700 text-gray-300' : 'border-gray-300 text-gray-600'}`}
                   style={{ height: `${hourHeight / 2}px`, paddingTop: '2px' }}
                 >
                   {hour.toString().padStart(2, '0')}:00
@@ -1010,9 +1101,9 @@ const CourseScheduler = () => {
           <div className="flex-1 flex">
             {days.map((day, idx) => (
               <div key={idx} className="flex-1 flex flex-col min-w-[120px]">
-                <div className="h-12 border-b border-gray-300 bg-gray-50 flex flex-col items-center justify-center sticky top-0 z-10">
+                <div className={`h-12 border-b flex flex-col items-center justify-center sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800 text-gray-100' : 'border-gray-300 bg-gray-50'}`}>
                   <div className="font-semibold text-sm">{day}</div>
-                  <div className="text-xs text-gray-500">{weekDates[idx]}</div>
+                  <div className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>{weekDates[idx]}</div>
                 </div>
                 {renderTimeGrid(day, idx)}
               </div>
@@ -1024,7 +1115,7 @@ const CourseScheduler = () => {
       {/* Context Menu */}
       {contextMenu && (
         <div
-          className="fixed bg-white border border-gray-300 rounded shadow-lg py-1 z-50"
+          className={`fixed rounded shadow-lg py-1 z-50 border ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-white border-gray-300'}`}
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
           {contextMenu.type === 'event' ? (
@@ -1035,7 +1126,7 @@ const CourseScheduler = () => {
                   setShowEventModal(true);
                   setContextMenu(null);
                 }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                className={`w-full px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
               >
                 Edit
               </button>
@@ -1043,7 +1134,7 @@ const CourseScheduler = () => {
                 onClick={() => {
                   handleCopyTo();
                 }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                className={`w-full px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
               >
                 Copy to...
               </button>
@@ -1052,7 +1143,7 @@ const CourseScheduler = () => {
                   onClick={() => {
                     copyToNextWeek();
                   }}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100"
+                  className={`w-full px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                 >
                   Copy to next week
                 </button>
@@ -1062,7 +1153,7 @@ const CourseScheduler = () => {
                   deleteEvents();
                   setContextMenu(null);
                 }}
-                className="w-full px-4 py-2 text-left hover:bg-gray-100 text-red-600"
+                className={`w-full px-4 py-2 text-left text-red-500 ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
               >
                 Delete {selectedEvents.size > 1 ? `(${selectedEvents.size})` : ''}
               </button>
@@ -1073,7 +1164,7 @@ const CourseScheduler = () => {
                 createNewEvent(contextMenu.day, contextMenu.hour, contextMenu.minute);
                 setContextMenu(null);
               }}
-              className="w-full px-4 py-2 text-left hover:bg-gray-100"
+              className={`w-full px-4 py-2 text-left ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
             >
               Create Event
             </button>
@@ -1084,12 +1175,12 @@ const CourseScheduler = () => {
       {/* Conflict Warning Modal */}
       {conflictWarning && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4 text-red-600">Scheduling Conflict</h2>
+          <div className={`rounded-lg p-6 w-full max-w-md border ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-white border-gray-200'}`}>
+            <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>Scheduling Conflict</h2>
             <p className="whitespace-pre-line mb-4">{conflictWarning.message}</p>
             <button
               onClick={conflictWarning.onConfirm}
-              className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              className={`${btnPrimary} w-full px-4 py-2`}
             >
               OK
             </button>
@@ -1100,11 +1191,28 @@ const CourseScheduler = () => {
       {/* Event Modal */}
       {showEventModal && editingEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className={`rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto border ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : 'bg-white border-gray-200'}`}>
             <h2 className="text-xl font-bold mb-4">
               {events.find(e => e.id === editingEvent.id) ? 'Edit Event' : 'New Event'}
             </h2>
-            
+            <div>
+              <label className="text-sm font-medium">Date</label>
+              <input
+                type="date"
+                value={editingEvent.dateIso || ''}
+                onChange={(e) => {
+                  const newIso = e.target.value;
+                  setEditingEvent({ ...editingEvent, dateIso: newIso });
+
+                  // TODO: if date moves to another week, migrate event between weekly spreadsheets.
+                }}
+                className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
+              />
+              <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>
+                If you change the date to a different week, the event must be migrated to that week’s spreadsheet (to be implemented).
+              </div>
+            </div>
+
             <div className="space-y-3">
               <div>
                 <label className="text-sm font-medium">Subject</label>
@@ -1112,7 +1220,7 @@ const CourseScheduler = () => {
                   type="text"
                   value={editingEvent.subject}
                   onChange={(e) => setEditingEvent({...editingEvent, subject: e.target.value})}
-                  className="w-full px-3 py-2 border rounded"
+                  className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 />
               </div>
 
@@ -1128,7 +1236,7 @@ const CourseScheduler = () => {
                           newTeachers[idx] = e.target.value;
                           setEditingEvent({...editingEvent, teachers: newTeachers});
                         }}
-                        className="flex-1 px-3 py-2 border rounded"
+                        className={`flex-1 px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                       >
                         <option value="">Select Teacher</option>
                         {teacherList.map(t => (
@@ -1140,7 +1248,7 @@ const CourseScheduler = () => {
                           const newTeachers = editingEvent.teachers.filter((_, i) => i !== idx);
                           setEditingEvent({...editingEvent, teachers: newTeachers});
                         }}
-                        className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                        className={`${btnDanger} px-3 py-2`}
                       >
                         <X size={16} />
                       </button>
@@ -1148,7 +1256,7 @@ const CourseScheduler = () => {
                   ))}
                   <button
                     onClick={() => setEditingEvent({...editingEvent, teachers: [...editingEvent.teachers, '']})}
-                    className="px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 text-sm"
+                    className={`${btnLinkBlue} px-3 py-2`}
                   >
                     + Add Teacher
                   </button>
@@ -1167,7 +1275,7 @@ const CourseScheduler = () => {
                           newStudents[idx] = e.target.value;
                           setEditingEvent({...editingEvent, students: newStudents});
                         }}
-                        className="flex-1 px-3 py-2 border rounded"
+                        className={`flex-1 px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                       >
                         <option value="">Select Student</option>
                         {studentList.map(s => (
@@ -1179,7 +1287,7 @@ const CourseScheduler = () => {
                           const newStudents = editingEvent.students.filter((_, i) => i !== idx);
                           setEditingEvent({...editingEvent, students: newStudents});
                         }}
-                        className="px-3 py-2 bg-red-100 text-red-600 rounded hover:bg-red-200"
+                        className={`${btnDanger} px-3 py-2`}
                       >
                         <X size={16} />
                       </button>
@@ -1187,7 +1295,7 @@ const CourseScheduler = () => {
                   ))}
                   <button
                     onClick={() => setEditingEvent({...editingEvent, students: [...editingEvent.students, '']})}
-                    className="px-3 py-2 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 text-sm"
+                    className={`${btnLinkBlue} px-3 py-2`}
                   >
                     + Add Student
                   </button>
@@ -1199,7 +1307,7 @@ const CourseScheduler = () => {
                 <select
                   value={editingEvent.branch}
                   onChange={(e) => setEditingEvent({...editingEvent, branch: e.target.value})}
-                  className="w-full px-3 py-2 border rounded"
+                  className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 >
                   <option value="Branch A">Branch A</option>
                   <option value="Branch B">Branch B</option>
@@ -1212,7 +1320,7 @@ const CourseScheduler = () => {
                 <select
                   value={editingEvent.room}
                   onChange={(e) => setEditingEvent({...editingEvent, room: e.target.value})}
-                  className="w-full px-3 py-2 border rounded"
+                  className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                 >
                   <option value="">Select Room</option>
                   {roomList.map(r => (
@@ -1236,7 +1344,7 @@ const CourseScheduler = () => {
                         startTime: {...editingEvent.startTime, hour, minute: roundedMinute}
                       });
                     }}
-                    className="w-full px-3 py-2 border rounded"
+                    className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                   />
                 </div>
                 <div>
@@ -1253,7 +1361,7 @@ const CourseScheduler = () => {
                         endTime: {...editingEvent.endTime, hour, minute: roundedMinute}
                       });
                     }}
-                    className="w-full px-3 py-2 border rounded"
+                    className={`w-full px-3 py-2 border rounded ${isDarkMode ? 'bg-gray-900 border-gray-700 text-gray-100' : ''}`}
                   />
                 </div>
               </div>
@@ -1262,7 +1370,7 @@ const CourseScheduler = () => {
             <div className="flex gap-2 mt-6">
               <button
                 onClick={saveEvent}
-                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className={`${btnPrimary} flex-1 px-4 py-2`}
               >
                 Save
               </button>
@@ -1271,7 +1379,7 @@ const CourseScheduler = () => {
                   setShowEventModal(false);
                   setEditingEvent(null);
                 }}
-                className="flex-1 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300"
+                className={`${btnSecondary} flex-1 px-4 py-2`}
               >
                 Cancel
               </button>

@@ -1,42 +1,95 @@
+
+/* App base styles (replace Vite starter template) */
+
+:root {
+  color-scheme: light;
+}
+
+/* When the app toggles dark mode, we add `.dark` to <html> */
+html.dark {
+  color-scheme: dark;
+}
+
+/* Remove the Vite template centering/width constraints */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+html,
+body {
+  height: 100%;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+body {
+  margin: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* Optional: improve focus visibility */
+:focus-visible {
+  outline: 2px solid rgba(59, 130, 246, 0.9); /* blue-500 */
+  outline-offset: 2px;
 }
 
-.card {
-  padding: 2em;
+/* Ensure native inputs look reasonable in dark mode */
+html.dark input,
+html.dark select,
+html.dark textarea {
+  color-scheme: dark;
 }
 
-.read-the-docs {
-  color: #888;
+/* --- Neutralize browser default button styling (prevents white/gray "buttonface" in dark mode) --- */
+:where(button) {
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  line-height: inherit;
+}
+
+:where(button):not(:disabled) {
+  cursor: pointer;
+}
+
+:where(input[type="button"], input[type="submit"], input[type="reset"]) {
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+}
+
+/* Keep form controls inheriting font; Tailwind utility classes will still set colors/borders as needed */
+:where(input, select, textarea) {
+  font: inherit;
+}
+
+
+/* Dark-mode fallback: if a button ends up with no explicit bg utility, keep it readable */
+html.dark button {
+  background-color: rgba(31, 41, 55, 0.95); /* gray-800 */
+  color: rgb(243, 244, 246); /* gray-100 */
+  border: 1px solid rgb(55, 65, 81); /* gray-700 */
+}
+
+html.dark button:hover {
+  background-color: rgba(55, 65, 81, 0.95); /* gray-700 */
+}
+
+html.dark button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Do not affect icon-only buttons that intentionally use transparent background */
+html.dark button.p-2 {
+  background-color: transparent;
+  border-color: rgb(55, 65, 81);
 }
