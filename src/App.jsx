@@ -4,7 +4,6 @@ import HeaderBar from './components/HeaderBar';
 import NoticeBar from './components/NoticeBar';
 import Toolbar from './components/Toolbar';
 import CalendarGrid from './components/CalendarGrid';
-import EventCard from './components/EventCard';
 import ContextMenu from './components/ContextMenu';
 import SettingsPanel from './components/SettingsPanel';
 import EventModal from './components/modals/EventModal';
@@ -14,6 +13,7 @@ import useGoogleAuth from './hooks/useGoogleAuth';
 import useCalendarMath from './hooks/useCalendarMath';
 import useContextMenu from './hooks/useContextMenu';
 import useSchedulerState from './hooks/useSchedulerState';
+import createGoogleFetch from './services/googleFetch';
 
 const CourseScheduler = () => {
   // const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -92,41 +92,6 @@ const CourseScheduler = () => {
 
   const calendarRef = useRef(null);
 
-  const iconBtnClass = isDarkMode
-    ? 'p-2 rounded bg-transparent hover:bg-gray-800 text-gray-100 border border-gray-700'
-    : 'p-2 rounded bg-transparent hover:bg-gray-100 text-gray-800 border border-transparent';
-
-  const pillBtnBase = 'px-3 py-2 rounded border';
-  const pillBtnInactive = isDarkMode
-    ? 'bg-gray-800 border-gray-700 text-gray-100 hover:bg-gray-700'
-    : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100';
-
-  const noticeOkBtnRed = isDarkMode
-    ? 'px-3 py-1 bg-red-900/40 text-red-100 rounded hover:bg-red-900/60 shrink-0 border border-red-800'
-    : 'px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0';
-
-  const noticeOkBtnGreen = isDarkMode
-    ? 'px-3 py-1 bg-green-900/40 text-green-100 rounded hover:bg-green-900/60 shrink-0 border border-green-800'
-    : 'px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 shrink-0';
-
-  const btnBase = 'rounded font-semibold border transition-colors';
-
-  const btnPrimary = isDarkMode
-    ? `${btnBase} bg-blue-500 hover:bg-blue-400 text-white border-blue-300 shadow-sm`
-    : `${btnBase} bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-sm`;
-
-  const btnSecondary = isDarkMode
-    ? `${btnBase} bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-700`
-    : `${btnBase} bg-gray-200 hover:bg-gray-300 text-gray-800 border-gray-300`;
-
-  const btnDanger = isDarkMode
-    ? `${btnBase} bg-red-900/40 hover:bg-red-900/60 text-red-100 border-red-800`
-    : `${btnBase} bg-red-100 hover:bg-red-200 text-red-700 border-red-200`;
-
-  const btnLinkBlue = isDarkMode
-    ? `${btnBase} bg-blue-900/40 hover:bg-blue-900/60 text-blue-100 border-blue-800 text-sm`
-    : `${btnBase} bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200 text-sm`;
-
   useEffect(() => {
     if (calendarRef.current) {
       const scrollTo = 10 * hourHeight;
@@ -134,28 +99,7 @@ const CourseScheduler = () => {
     }
   }, [hourHeight]);
 
-  const googleFetch = async (url, init = {}) => {
-    if (!accessToken) throw new Error('Not signed in');
-    const res = await fetch(url, {
-      ...init,
-      headers: {
-        ...(init.headers || {}),
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-    if (!res.ok) {
-      let details = '';
-      try {
-        details = await res.text();
-      } catch {
-        // ignore
-      }
-      throw new Error(`Google API error ${res.status}: ${details || res.statusText}`);
-    }
-    const ct = res.headers.get('content-type') || '';
-    if (ct.includes('application/json')) return res.json();
-    return res.text();
-  };
+  const googleFetch = createGoogleFetch(accessToken);
 
   const createIndexSpreadsheetInMyDrive = async () => {
     setAuthError('');
@@ -236,104 +180,40 @@ const CourseScheduler = () => {
     }
   };
 
-  const handleEventContextMenu = (e, event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleEventContextMenuSelect(event);
-    openContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      type: 'event',
-      event: event
-    });
-  };
+  const iconBtnClass = isDarkMode
+    ? 'p-2 rounded bg-transparent hover:bg-gray-800 text-gray-100 border border-gray-700'
+    : 'p-2 rounded bg-transparent hover:bg-gray-100 text-gray-800 border border-transparent';
 
-  const handleEmptyContextMenu = (e, day, hour, minute) => {
-    e.preventDefault();
+  const pillBtnBase = 'px-3 py-2 rounded border';
+  const pillBtnInactive = isDarkMode
+    ? 'bg-gray-800 border-gray-700 text-gray-100 hover:bg-gray-700'
+    : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-100';
 
-    if (copyMode) {
-      pasteEvent(day, hour, minute);
-      return;
-    }
+  const noticeOkBtnRed = isDarkMode
+    ? 'px-3 py-1 bg-red-900/40 text-red-100 rounded hover:bg-red-900/60 shrink-0 border border-red-800'
+    : 'px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 shrink-0';
 
-    openContextMenu({
-      x: e.clientX,
-      y: e.clientY,
-      type: 'empty',
-      day,
-      hour,
-      minute
-    });
-  };
+  const noticeOkBtnGreen = isDarkMode
+    ? 'px-3 py-1 bg-green-900/40 text-green-100 rounded hover:bg-green-900/60 shrink-0 border border-green-800'
+    : 'px-3 py-1 bg-green-100 text-green-800 rounded hover:bg-green-200 shrink-0';
 
-  const renderTimeGrid = (day, dayIndex) => {
-    const dayEvents = getFilteredEvents().filter((e) => e.startTime.day === dayIndex);
+  const btnBase = 'rounded font-semibold border transition-colors';
 
-    return (
-      <div
-        key={dayIndex}
-        className="flex-1 border-r border-gray-300 relative min-w-[120px]"
-        onDrop={(e) => handleDrop(e, dayIndex, pixelsToTime)}
-        onDragOver={(e) => e.preventDefault()}
-        onContextMenu={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const y = e.clientY - rect.top;
-          const { hour, minute } = pixelsToTime(y);
-          handleEmptyContextMenu(e, dayIndex, hour, minute);
-        }}
-        onClick={(e) => {
-          if (copyMode) {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const y = e.clientY - rect.top;
-            const { hour, minute } = pixelsToTime(y);
-            pasteEvent(dayIndex, hour, minute);
-          }
-        }}
-      >
-        {hours.map((hour) => (
-          <div key={hour}>
-            <div
-              className="border-t border-gray-300"
-              style={{ height: showHalfHourLines ? `${hourHeight / 2}px` : `${hourHeight}px` }}
-            />
-            {showHalfHourLines && (
-              <div
-                className="border-t border-gray-200"
-                style={{ height: `${hourHeight / 2}px` }}
-              />
-            )}
-          </div>
-        ))}
+  const btnPrimary = isDarkMode
+    ? `${btnBase} bg-blue-500 hover:bg-blue-400 text-white border-blue-300 shadow-sm`
+    : `${btnBase} bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-sm`;
 
-        {dayEvents.map((event) => {
-          const top = timeToPixels(event.startTime.hour, event.startTime.minute);
-          const duration = (event.endTime.hour * 60 + event.endTime.minute) -
-                          (event.startTime.hour * 60 + event.startTime.minute);
-          const height = (duration / 60) * hourHeight;
-          const isSelected = selectedEvents.has(event.id);
+  const btnSecondary = isDarkMode
+    ? `${btnBase} bg-gray-800 hover:bg-gray-700 text-gray-100 border-gray-700`
+    : `${btnBase} bg-gray-200 hover:bg-gray-300 text-gray-800 border-gray-300`;
 
-          return (
-            <EventCard
-              key={event.id}
-              event={event}
-              top={top}
-              height={height}
-              color={getEventColor(event)}
-              isSelected={isSelected}
-              onDragStart={(e) => handleDragStart(e, event)}
-              onClick={(e) => handleEventClick(e, event.id)}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                setEditingEvent(event);
-                setShowEventModal(true);
-              }}
-              onContextMenu={(e) => handleEventContextMenu(e, event)}
-            />
-          );
-        })}
-      </div>
-    );
-  };
+  const btnDanger = isDarkMode
+    ? `${btnBase} bg-red-900/40 hover:bg-red-900/60 text-red-100 border-red-800`
+    : `${btnBase} bg-red-100 hover:bg-red-200 text-red-700 border-red-200`;
+
+  const btnLinkBlue = isDarkMode
+    ? `${btnBase} bg-blue-900/40 hover:bg-blue-900/60 text-blue-100 border-blue-800 text-sm`
+    : `${btnBase} bg-blue-100 hover:bg-blue-200 text-blue-700 border-blue-200 text-sm`;
 
   return (
     <div className={`h-screen flex flex-col ${isDarkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50'}`}>
@@ -401,8 +281,52 @@ const CourseScheduler = () => {
         weekDates={weekDates}
         hourHeight={hourHeight}
         showHalfHourLines={showHalfHourLines}
-        renderTimeGrid={renderTimeGrid}
         calendarRef={calendarRef}
+
+        // data
+        getFilteredEvents={getFilteredEvents}
+        selectedEvents={selectedEvents}
+        getEventColor={getEventColor}
+
+        // math
+        timeToPixels={timeToPixels}
+        pixelsToTime={pixelsToTime}
+
+        // DnD + selection
+        onDrop={handleDrop}
+        onDragStart={handleDragStart}
+        onEventClick={handleEventClick}
+        onEventDoubleClick={(e, event) => {
+          e.stopPropagation();
+          setEditingEvent(event);
+          setShowEventModal(true);
+        }}
+
+        // copy + context menu
+        copyMode={copyMode}
+        onPasteEvent={pasteEvent}
+        onOpenEmptyContextMenu={(e, day, hour, minute) => {
+          e.preventDefault();
+          openContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            type: 'empty',
+            day,
+            hour,
+            minute
+          });
+        }}
+        onOpenEventContextMenu={(e, event) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleEventContextMenuSelect(event);
+          openContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            type: 'event',
+            event
+          });
+        }}
       />
 
       <ContextMenu

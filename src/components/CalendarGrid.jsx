@@ -1,4 +1,5 @@
 import React from 'react';
+import EventCard from './EventCard';
 
 const CalendarGrid = ({
   isDarkMode,
@@ -7,9 +8,99 @@ const CalendarGrid = ({
   weekDates,
   hourHeight,
   showHalfHourLines,
-  renderTimeGrid,
-  calendarRef
+  calendarRef,
+
+  // data
+  getFilteredEvents,
+  selectedEvents,
+  getEventColor,
+
+  // math
+  timeToPixels,
+  pixelsToTime,
+
+  // DnD + selection
+  onDrop,
+  onDragStart,
+  onEventClick,
+  onEventDoubleClick,
+
+  // context menu + copy
+  copyMode,
+  onPasteEvent,
+  onOpenEmptyContextMenu,
+  onOpenEventContextMenu
 }) => {
+  const renderTimeGrid = (dayIndex) => {
+    const dayEvents = getFilteredEvents().filter((e) => e.startTime.day === dayIndex);
+
+    return (
+      <div
+        key={dayIndex}
+        className={`flex-1 border-r relative min-w-[120px] ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`}
+        onDrop={(e) => onDrop(e, dayIndex, pixelsToTime)}
+        onDragOver={(e) => e.preventDefault()}
+        onContextMenu={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const { hour, minute } = pixelsToTime(y);
+
+          if (copyMode) {
+            onPasteEvent(dayIndex, hour, minute);
+            return;
+          }
+          onOpenEmptyContextMenu(e, dayIndex, hour, minute);
+        }}
+        onClick={(e) => {
+          if (!copyMode) return;
+          const rect = e.currentTarget.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const { hour, minute } = pixelsToTime(y);
+          onPasteEvent(dayIndex, hour, minute);
+        }}
+      >
+        {hours.map((hour) => (
+          <div key={hour}>
+            <div
+              className={`${isDarkMode ? 'border-t border-gray-700' : 'border-t border-gray-300'}`}
+              style={{ height: showHalfHourLines ? `${hourHeight / 2}px` : `${hourHeight}px` }}
+            />
+            {showHalfHourLines && (
+              <div
+                className={`${isDarkMode ? 'border-t border-gray-800' : 'border-t border-gray-200'}`}
+                style={{ height: `${hourHeight / 2}px` }}
+              />
+            )}
+          </div>
+        ))}
+
+        {dayEvents.map((event) => {
+          const top = timeToPixels(event.startTime.hour, event.startTime.minute);
+          const duration =
+            (event.endTime.hour * 60 + event.endTime.minute) -
+            (event.startTime.hour * 60 + event.startTime.minute);
+          const height = (duration / 60) * hourHeight;
+          const isSelected = selectedEvents.has(event.id);
+
+          return (
+            <EventCard
+              key={event.id}
+              event={event}
+              top={top}
+              height={height}
+              color={getEventColor(event)}
+              isSelected={isSelected}
+              onDragStart={(evt) => onDragStart(evt, event)}
+              onClick={(evt) => onEventClick(evt, event.id)}
+              onDoubleClick={(evt) => onEventDoubleClick(evt, event)}
+              onContextMenu={(evt) => onOpenEventContextMenu(evt, event)}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 overflow-auto" ref={calendarRef}>
       <div className="flex min-h-full">
@@ -35,7 +126,7 @@ const CalendarGrid = ({
                 <div className="font-semibold text-sm">{day}</div>
                 <div className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-500'}`}>{weekDates[idx]}</div>
               </div>
-              {renderTimeGrid(day, idx, showHalfHourLines, hourHeight)}
+              {renderTimeGrid(idx)}
             </div>
           ))}
         </div>
