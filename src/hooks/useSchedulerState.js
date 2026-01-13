@@ -24,10 +24,27 @@ const useSchedulerState = () => {
     }
   ]);
 
-  const [teacherList] = useState(['Dr. Smith', 'Prof. Johnson', 'Ms. Davis', 'Mr. Wilson']);
-  const [studentList] = useState(['John Doe', 'Jane Wilson', 'Alice Brown', 'Bob Smith', 'Carol White']);
-  const [roomList] = useState(['Room 101', 'Room 102', 'Room 103', 'Lab 1', 'Lab 2', 'Lab 3', 'Auditorium']);
-  const branchList = useMemo(() => ['Branch A', 'Branch B', 'Branch C'], []);
+  // Derived lists (update automatically based on loaded events)
+  const teacherList = useMemo(() => {
+    const set = new Set();
+    for (const e of events) (e.teachers || []).forEach((t) => t && set.add(t));
+    return Array.from(set);
+  }, [events]);
+
+  const studentList = useMemo(() => {
+    const set = new Set();
+    for (const e of events) (e.students || []).forEach((s) => s && set.add(s));
+    return Array.from(set);
+  }, [events]);
+
+  const roomList = useMemo(() => {
+    const set = new Set();
+    for (const e of events) if (e.room) set.add(e.room);
+    return Array.from(set);
+  }, [events]);
+
+  // Fixed campuses/branches (to be replaced later by reading from the index sheet)
+  const branchList = useMemo(() => ['TEST_CAMPUS', 'Campus North', 'Campus South', 'Campus West'], []);
 
   const sortedTeachers = useMemo(() => [...teacherList].sort(), [teacherList]);
   const sortedStudents = useMemo(() => [...studentList].sort(), [studentList]);
@@ -49,24 +66,16 @@ const useSchedulerState = () => {
   const [conflictWarning, setConflictWarning] = useState(null);
 
   const [userSettings, setUserSettings] = useState({
-    branch: 'Branch A',
+    branch: branchList[0] || 'TEST_CAMPUS',
     timezone: 'auto'
   });
 
+  // Predefined campus colors (only depends on campus/branch to avoid confusion)
   const branchColors = useMemo(() => ({
-    'Branch A': 'hsl(210, 70%, 85%)',
-    'Branch B': 'hsl(150, 70%, 85%)',
-    'Branch C': 'hsl(30, 70%, 85%)'
-  }), []);
-
-  const roomColors = useMemo(() => ({
-    'Room 101': 'hsl(0, 70%, 85%)',
-    'Room 102': 'hsl(45, 70%, 85%)',
-    'Room 103': 'hsl(90, 70%, 85%)',
-    'Lab 1': 'hsl(180, 70%, 85%)',
-    'Lab 2': 'hsl(225, 70%, 85%)',
-    'Lab 3': 'hsl(270, 70%, 85%)',
-    'Auditorium': 'hsl(315, 70%, 85%)'
+    'TEST_CAMPUS': 'hsl(210, 70%, 85%)',
+    'Campus North': 'hsl(150, 70%, 85%)',
+    'Campus South': 'hsl(30, 70%, 85%)',
+    'Campus West': 'hsl(270, 70%, 85%)'
   }), []);
 
   useEffect(() => {
@@ -93,10 +102,7 @@ const useSchedulerState = () => {
   };
 
   const getEventColor = (event) => {
-    if (viewMode === 'branch') {
-      return roomColors[event.room] || 'hsl(0, 0%, 85%)';
-    }
-    return branchColors[event.branch] || 'hsl(0, 0%, 85%)';
+    return branchColors[event.branch] || 'hsl(210, 10%, 85%)';
   };
 
   const checkConflicts = (newEvent, excludeEventId = null) => {

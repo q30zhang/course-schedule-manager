@@ -14,10 +14,12 @@ import useCalendarMath from './hooks/useCalendarMath';
 import useContextMenu from './hooks/useContextMenu';
 import useSchedulerState from './hooks/useSchedulerState';
 import createGoogleFetch from './services/googleFetch';
+import { createIndexSpreadsheetInMyDrive, loadWeekSchedule } from './services/sheetsApi';
 
 const CourseScheduler = () => {
   // const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const GOOGLE_CLIENT_ID = '207856180548-51eogdoqo4shuj1ko7n0qstr2q9fhkdg.apps.googleusercontent.com'; // DEV
+  const TEST_WEEK_SPREADSHEET_ID = '1y9xfIkJ0moJ2AxZGt_oGtGo8DJlJsR0ajFftjmWKLRY';
 
   const [indexSpreadsheet, setIndexSpreadsheet] = useState(null);
   const [showIndexNotice, setShowIndexNotice] = useState(true);
@@ -42,6 +44,7 @@ const CourseScheduler = () => {
 
   const {
     events,
+    setEvents,
     teacherList,
     studentList,
     roomList,
@@ -101,77 +104,50 @@ const CourseScheduler = () => {
 
   const googleFetch = createGoogleFetch(accessToken);
 
-  const createIndexSpreadsheetInMyDrive = async () => {
+  const handleSyncTestWeek = async () => {
     setAuthError('');
     try {
-      const created = await googleFetch('https://sheets.googleapis.com/v4/spreadsheets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          properties: { title: 'Course Schedule Manager - Index (DEV)' },
-          sheets: [{ properties: { title: 'campus_week_index' } }]
-        })
+      if (!accessToken) throw new Error('Please sign in first.');
+
+      const result = await loadWeekSchedule(googleFetch, TEST_WEEK_SPREADSHEET_ID, {
+        campusId: 'TEST_CAMPUS'
       });
 
-      const spreadsheetId = created.spreadsheetId;
-      const spreadsheetUrl = created.spreadsheetUrl || `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
+      console.log('loadWeekSchedule result:', result);
+      console.log('events sample (first 5):', result.events.slice(0, 5));
 
-      await googleFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          requests: [
-            { addSheet: { properties: { title: 'teachers' } } },
-            { addSheet: { properties: { title: 'students' } } },
-            { addSheet: { properties: { title: 'course_status' } } },
-            { addSheet: { properties: { title: 'audit_log' } } }
-          ]
-        })
+      // Map sheets events into the UI event model expected by Calendar/EventModal.
+      const mapped = (result.events || []).map((ev) => ({
+        id: ev.id,
+        teachers: ev.teachers || [],
+        students: ev.students || [],
+        startTime: ev.startTime,
+        endTime: ev.endTime,
+        subject: ev.subject || '',
+        // Use campus as branch for now (you can map campusId -> real branch name later)
+        branch: ev.campus || 'Branch A',
+        // Use room order (tab order) as a stable label
+        room: `Room ${ev.room}`,
+        // Keep extra metadata for later write-back/debug
+        campus: ev.campus,
+        spreadsheetId: ev.spreadsheetId,
+        roomSheetTitle: ev.roomSheetTitle,
+        date: ev.date
+      }));
+
+      setEvents(mapped);
+    } catch (err) {
+      setShowAuthError(true);
+      setAuthError(err?.message || String(err));
+    }
+  };
+
+  const handleCreateIndexSpreadsheet = async () => {
+    setAuthError('');
+    try {
+      const { spreadsheetId, spreadsheetUrl } = await createIndexSpreadsheetInMyDrive(googleFetch, {
+        title: 'Course Schedule Manager - Index (DEV)'
       });
-
-      await googleFetch(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchUpdate?valueInputOption=RAW`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data: [
-            {
-              range: 'campus_week_index!A1:H1',
-              majorDimension: 'ROWS',
-              values: [[
-                'campus_id',
-                'week_start_date',
-                'spreadsheet_id',
-                'sheet_name',
-                'status',
-                'last_updated_at',
-                'last_updated_by',
-                'notes'
-              ]]
-            },
-            {
-              range: 'teachers!A1:E1',
-              majorDimension: 'ROWS',
-              values: [[ 'teacher_id', 'name', 'email', 'campus_ids', 'active' ]]
-            },
-            {
-              range: 'students!A1:E1',
-              majorDimension: 'ROWS',
-              values: [[ 'student_id', 'name', 'email', 'campus_id', 'active' ]]
-            },
-            {
-              range: 'course_status!A1:D1',
-              majorDimension: 'ROWS',
-              values: [[ 'status_code', 'label', 'color', 'active' ]]
-            },
-            {
-              range: 'audit_log!A1:F1',
-              majorDimension: 'ROWS',
-              values: [[ 'timestamp', 'user', 'action', 'campus_id', 'week_start_date', 'details' ]]
-            }
-          ]
-        })
-      });
-
       setShowIndexNotice(true);
       setIndexSpreadsheet({ spreadsheetId, spreadsheetUrl });
     } catch (err) {
@@ -225,12 +201,13 @@ const CourseScheduler = () => {
         accessToken={accessToken}
         onSignIn={signIn}
         onSignOut={signOut}
-        onCreateIndex={createIndexSpreadsheetInMyDrive}
+        onCreateIndex={handleCreateIndexSpreadsheet}
         showHalfHourLines={showHalfHourLines}
         onToggleHalfHourLines={setShowHalfHourLines}
         onToggleSettings={() => setShowSettings(!showSettings)}
         onToggleDarkMode={toggleDarkMode}
-        onSync={() => console.log('TODO: load/save schedule using Sheets API')}
+        onSync={handleSyncTestWeek}
+        // onSync={() => console.log('TODO: load/save schedule using Sheets API')}
       >
         <NoticeBar
           showAuthError={showAuthError}
@@ -361,6 +338,7 @@ const CourseScheduler = () => {
         conflictWarning={conflictWarning}
         isDarkMode={isDarkMode}
         btnPrimary={btnPrimary}
+        onClose={() => setConflictWarning(null)}
       />
 
       <EventModal
