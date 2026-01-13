@@ -71,12 +71,15 @@ const useSchedulerState = () => {
   });
 
   // Predefined campus colors (only depends on campus/branch to avoid confusion)
-  const branchColors = useMemo(() => ({
-    'TEST_CAMPUS': 'hsl(210, 70%, 85%)',
-    'Campus North': 'hsl(150, 70%, 85%)',
-    'Campus South': 'hsl(30, 70%, 85%)',
-    'Campus West': 'hsl(270, 70%, 85%)'
-  }), []);
+  const branchColors = useMemo(
+    () => ({
+      TEST_CAMPUS: 'hsl(210, 70%, 85%)',
+      'Campus North': 'hsl(150, 70%, 85%)',
+      'Campus South': 'hsl(30, 70%, 85%)',
+      'Campus West': 'hsl(270, 70%, 85%)'
+    }),
+    []
+  );
 
   useEffect(() => {
     const handleEscape = (e) => {
@@ -182,8 +185,10 @@ const useSchedulerState = () => {
     const y = e.clientY - rect.top - dragOffset.y;
     const { hour, minute } = pixelsToTime(y);
 
-    const duration = (draggedEvent.endTime.hour * 60 + draggedEvent.endTime.minute) -
-                     (draggedEvent.startTime.hour * 60 + draggedEvent.startTime.minute);
+    const duration =
+      draggedEvent.endTime.hour * 60 +
+      draggedEvent.endTime.minute -
+      (draggedEvent.startTime.hour * 60 + draggedEvent.startTime.minute);
 
     const endTotalMinutes = hour * 60 + minute + duration;
     const endHour = Math.floor(endTotalMinutes / 60);
@@ -205,9 +210,7 @@ const useSchedulerState = () => {
       return;
     }
 
-    setEvents((prev) => prev.map((ev) =>
-      ev.id === draggedEvent.id ? updatedEvent : ev
-    ));
+    setEvents((prev) => prev.map((ev) => (ev.id === draggedEvent.id ? updatedEvent : ev)));
 
     setDraggedEvent(null);
     console.log('Event moved - sync with database');
@@ -259,7 +262,7 @@ const useSchedulerState = () => {
     }
 
     if (editingEvent.id && events.find((e) => e.id === editingEvent.id)) {
-      setEvents((prev) => prev.map((e) => e.id === editingEvent.id ? editingEvent : e));
+      setEvents((prev) => prev.map((e) => (e.id === editingEvent.id ? editingEvent : e)));
     } else {
       setEvents((prev) => [...prev, editingEvent]);
     }
@@ -276,8 +279,10 @@ const useSchedulerState = () => {
   const pasteEvent = (day, hour, minute) => {
     if (!eventToCopy) return;
 
-    const duration = (eventToCopy.endTime.hour * 60 + eventToCopy.endTime.minute) -
-                     (eventToCopy.startTime.hour * 60 + eventToCopy.startTime.minute);
+    const duration =
+      eventToCopy.endTime.hour * 60 +
+      eventToCopy.endTime.minute -
+      (eventToCopy.startTime.hour * 60 + eventToCopy.startTime.minute);
 
     const endTotalMinutes = hour * 60 + minute + duration;
     const endHour = Math.floor(endTotalMinutes / 60);

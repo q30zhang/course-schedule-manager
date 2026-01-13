@@ -2,6 +2,7 @@ import React from 'react';
 
 const EventCard = ({
   event,
+  viewMode = 'all',
   top,
   height,
   leftPct = 0,
@@ -13,6 +14,17 @@ const EventCard = ({
   onDoubleClick,
   onContextMenu
 }) => {
+  const cleanTeacher = (name) => {
+    return String(name || '')
+      .replace(/\b1v1\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const teacherText = (event.teachers || []).map(cleanTeacher).filter(Boolean).join(', ');
+  const studentText = (event.students || []).filter(Boolean).join(', ');
+  const showStudents = viewMode !== 'student';
+
   return (
     <div
       draggable
@@ -20,7 +32,7 @@ const EventCard = ({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
-      className={`absolute rounded p-2 cursor-move text-xs overflow-hidden text-gray-900 border border-black/50 shadow-sm ${
+      className={`absolute rounded p-2 cursor-move text-xs overflow-hidden text-gray-900 border border-black/40 shadow-sm ${
         isSelected ? 'ring-2 ring-blue-500' : ''
       }`}
       style={{
@@ -32,7 +44,10 @@ const EventCard = ({
       }}
     >
       <div className="font-semibold truncate text-gray-900">{event.subject}</div>
-      <div className="truncate text-gray-800">{event.teachers.join(', ')}</div>
+      <div className="truncate text-gray-800">{teacherText}</div>
+      {showStudents && (
+        <div className="truncate text-[11px] text-gray-800">{studentText}</div>
+      )}
       <div className="truncate text-[10px] text-gray-700">{event.branch}</div>
     </div>
   );

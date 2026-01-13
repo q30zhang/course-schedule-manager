@@ -259,6 +259,7 @@ const CourseScheduler = () => {
         hourHeight={hourHeight}
         showHalfHourLines={showHalfHourLines}
         calendarRef={calendarRef}
+        viewMode={viewMode}
 
         // data
         getFilteredEvents={getFilteredEvents}

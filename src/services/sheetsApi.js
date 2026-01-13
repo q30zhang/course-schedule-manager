@@ -251,11 +251,18 @@ function parseTimeRange(line) {
   };
 }
 
-function splitPeople(str) {
-  // Teachers could be "A", "A, B", "A & B", "A / B", "A and B"
+function cleanTeacherName(name) {
+  return String(name || '')
+    .replace(/\b1v1\b/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function splitPeople(str, cleaner = (x) => String(x).trim()) {
+  // People could be "A", "A, B", "A & B", "A / B", "A and B"
   return String(str)
     .split(/\s*(?:,|&|\/|\band\b)\s*/i)
-    .map((s) => s.trim())
+    .map((s) => cleaner(s))
     .filter(Boolean);
 }
 
@@ -283,7 +290,7 @@ function parseCellText(cellText) {
 
   if (teacherLineIdx !== -1) {
     const inside = lines[teacherLineIdx].slice(1, -1).trim();
-    teachers = splitPeople(inside);
+    teachers = splitPeople(inside, cleanTeacherName);
     studentLines = lines.slice(1, teacherLineIdx);
   } else {
     // No teacher line found; everything after time is student block

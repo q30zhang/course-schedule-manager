@@ -14,6 +14,7 @@ const CalendarGrid = ({
   getFilteredEvents,
   selectedEvents,
   getEventColor,
+  viewMode,
 
   // math
   timeToPixels,
@@ -74,29 +75,65 @@ const CalendarGrid = ({
           </div>
         ))}
 
-        {dayEvents.map((event) => {
-          const top = timeToPixels(event.startTime.hour, event.startTime.minute);
-          const duration =
-            (event.endTime.hour * 60 + event.endTime.minute) -
-            (event.startTime.hour * 60 + event.startTime.minute);
-          const height = (duration / 60) * hourHeight;
-          const isSelected = selectedEvents.has(event.id);
+        {(() => {
+          const items = dayEvents
+            .map((event) => {
+              const startMin = event.startTime.hour * 60 + event.startTime.minute;
+              const endMin = event.endTime.hour * 60 + event.endTime.minute;
+              return { event, startMin, endMin };
+            })
+            .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-          return (
-            <EventCard
-              key={event.id}
-              event={event}
-              top={top}
-              height={height}
-              color={getEventColor(event)}
-              isSelected={isSelected}
-              onDragStart={(evt) => onDragStart(evt, event)}
-              onClick={(evt) => onEventClick(evt, event.id)}
-              onDoubleClick={(evt) => onEventDoubleClick(evt, event)}
-              onContextMenu={(evt) => onOpenEventContextMenu(evt, event)}
-            />
-          );
-        })}
+          const colEnds = [];
+          const placed = [];
+
+          for (const it of items) {
+            let col = -1;
+            for (let c = 0; c < colEnds.length; c++) {
+              if (it.startMin >= colEnds[c]) {
+                col = c;
+                break;
+              }
+            }
+            if (col === -1) {
+              col = colEnds.length;
+              colEnds.push(it.endMin);
+            } else {
+              colEnds[col] = it.endMin;
+            }
+            placed.push({ ...it, col });
+          }
+
+          const numCols = Math.max(1, colEnds.length);
+          const gutterPct = 2;
+          const colWidth = (100 - gutterPct * (numCols - 1)) / numCols;
+
+          return placed.map(({ event, startMin, endMin, col }) => {
+            const top = timeToPixels(event.startTime.hour, event.startTime.minute);
+            const duration = endMin - startMin;
+            const height = (duration / 60) * hourHeight;
+            const isSelected = selectedEvents.has(event.id);
+            const leftPct = col * (colWidth + gutterPct);
+
+            return (
+              <EventCard
+                key={event.id}
+                event={event}
+                viewMode={viewMode}
+                top={top}
+                height={height}
+                leftPct={leftPct}
+                widthPct={colWidth}
+                color={getEventColor(event)}
+                isSelected={isSelected}
+                onDragStart={(evt) => onDragStart(evt, event)}
+                onClick={(evt) => onEventClick(evt, event.id)}
+                onDoubleClick={(evt) => onEventDoubleClick(evt, event)}
+                onContextMenu={(evt) => onOpenEventContextMenu(evt, event)}
+              />
+            );
+          });
+        })()}
       </div>
     );
   };
